@@ -47,3 +47,30 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# R
+.Rhistory
+.RData
+.Rproj.user
+
+# Jupyter / temp
+.ipynb_checkpoints/
+
+# Large bio data / common outputs
+*.bam
+*.bai
+*.fastq
+*.fq
+*.gz
+*.h5ad
+*.loom
+*.zarr
+*.rds
+*.pdf
+*.png
+*.tiff
+*.zip
+
+# OS junk
+.DS_Store
+
