@@ -11,13 +11,13 @@ analysis, and visualization in a lineage tracing project.
 - Bash / shell scripts
 
 ## Repository structure
-
+```
 scripts/
 ├── r/ # R scripts for analysis and visualization
 ├── shell/ # Shell scripts for running pipelines
 data/
 └── processed/ # Example or processed data (no raw data)
-
+```
 ## Usage
 Scripts are organized by analysis steps.
 Detailed instructions will be added as the project is finalized.
