@@ -1,18 +1,3 @@
-## External dependency
-
-This analysis makes use of a previously published Snakemake workflow
-for DARLIN/CARLIN lineage tracing data processing developed by
-the ShouWenWang Lab:
-
-- **snakemake_DARLIN**
-- GitHub repository: https://github.com/ShouWenWang-Lab/snakemake_DARLIN
-
-Users should install and configure the DARLIN pipeline according to
-the instructions provided in the original repository.
-This project calls the DARLIN Snakemake workflow externally and does
-not modify the original pipeline
-
-
 # HSC_Aging_Lineage_Tracing_Project
 
 Code for analysis of lineage tracing experiments.
