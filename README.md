@@ -181,6 +181,42 @@ Clones exhibiting significant cell fate bias can be identified by applying
 user-defined thresholds on Q_value and fate_bias.
 
 
+## Cell hash demultiplex 
+
+### HashTag reference file
+
+The HashTag reference file (`BioLegend_TotalA_Human_Barcode.csv`) must be
+a comma-separated table containing at least the following columns:
+
+- `ID`: HashTag identifier (e.g. A0301), matching the values provided to `--hashtag`
+- `Barcode`: Feature barcode sequence corresponding to each HashTag
+
+Additional annotation columns are allowed and will be ignored by the script.
+
+```
+Rscript scripts/r/hash_tag_demux.R \
+  --read1 path/to/feature_barcode_R1.fastq.gz \
+  --read2 path/to/feature_barcode_R2.fastq.gz \
+  --barcode_ref resources/BioLegend_TotalA_Mouse_hashtag_Barcode.csv \
+  --hashtag A0301,A0302,A0303, A0304, A0305, A0306 \
+  --outdir outputs/hashtag_demux \
+  --max_mismatch 1 \
+  --min_reads_per_cb 4 \
+  --ratio_cutoff 10 \
+  --prefix test1
+```
+### Example output
+
+The final demultiplexing result (`CB_hash_assign.csv`) contains one row per
+10x cell barcode. Cells that do not meet the assignment criteria are labeled
+as `unassigned`.
+
+```
+assignment,A0301,A0302,A0303,A0304,A0305,A0306,CB
+A0301,99.99,0,0,0,0,0.0,AAACCTGAGTACGTTC
+unassigned,46.4,53.6,0,0,0,0,AAACCTGAGTTCGATT
+```
+
 ## Data availability
 Raw sequencing data are not included in this repository.
 They will be made available via a public repository (e.g. GEO) upon publication.
