@@ -29,6 +29,8 @@ analysis, and visualization in a lineage tracing project.
 scripts/
 ├── r/ # R scripts for analysis and visualization
 ├── shell/ # Shell scripts for running pipelines
+├── Python/ # python scripts for running pipelines
+config/
 data/
 └── processed/ # Example or processed data (no raw data)
 ```
