@@ -197,7 +197,7 @@ Additional annotation columns are allowed and will be ignored by the script.
 Rscript scripts/r/hash_tag_demux.R \
   --read1 path/to/feature_barcode_R1.fastq.gz \
   --read2 path/to/feature_barcode_R2.fastq.gz \
-  --barcode_ref resources/BioLegend_TotalA_Mouse_hashtag_Barcode.csv \
+  --barcode_ref /data/BioLegend_TotalA_Mouse_hashtag_Barcode.csv \
   --hashtag A0301,A0302,A0303, A0304, A0305, A0306 \
   --outdir outputs/hashtag_demux \
   --max_mismatch 1 \
