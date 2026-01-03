@@ -107,6 +107,83 @@ Rscript scripts/r/coupling_score_downstream.R \
 The code above will calculate and plot coupling score among cell types.
 
 
+## Cell-type clustering and tree visualization
+
+Assuming the coupling score matrix has already been generated from the
+previous analysis, the following code performs hierarchical clustering
+of cell types based on their pairwise distances and visualizes the result
+as a circular tree.
+
+```r
+source("scripts/r/treeplot_celltype_clustering.R")
+
+coupling_mat <- read.table(
+  "outputs/coupling_score/coupling_score_coupling_score.tsv",
+  header = TRUE,
+  row.names = 1,
+  sep = "\t",
+  check.names = FALSE
+)
+
+obj <- build_celltype_treeplot(
+  coupling_mat,
+  out_path = "outputs/coupling_score/celltype_tree.png"
+)
+
+print(obj$plot)
+```
+
+## Cell fate bias calculation
+
+Cell fate bias is quantified based on a barcode-by–cell-type matrix.
+For each clone, a tab-separated input file (`cellular_fate_bias.txt`)
+should be prepared with the following format:
+
+```
+allele clone_size fate_size
+barcode_1  356  310
+barcode_2  1342 15
+...
+```
+
+- **allele**: unique barcode (clone identifier)
+- **clone_size**: total number of cells in the clone
+- **fate_size**: number of cells belonging to the target cell fate within the clone
+
+Assuming that `cellular_fate_bias.txt` has been prepared, run the following command:
+
+```bash
+python scripts/python/cell_fate_bias.py data/example_cell_fate.txt
+
+```
+
+Output
+
+The script generates an output file:
+
+```
+/results/example_cell_fate_results.txt
+```
+An example output is shown below:
+
+```
+allele	clone_size	fate_size	all_cell_number	fate_number	P1	P2	P_min	Q_value	bias	fate_bias
+Barcode_1	8	0	6279	2302	0.025834420337706096	0.9741655796622939	0.025834420337706096	0.041335072540329754	1.3836812958773301	-1.3836812958773301
+Barcode_2	8	0	6279	2302	0.025834420337706096	0.9741655796622939	0.025834420337706096	0.041335072540329754	1.3836812958773301	-1.3836812958773301
+```
+P1 / P2: probabilities for fate enrichment and depletion, respectively
+
+P_min: minimum of P1 and P2
+
+Q_value: Benjamini–Hochberg–adjusted p-value
+
+bias: signed enrichment score
+
+fate_bias: direction-specific fate bias score
+
+Clones exhibiting significant cell fate bias can be identified by applying
+user-defined thresholds on Q_value and fate_bias.
+
 
 ## Data availability
 Raw sequencing data are not included in this repository.
