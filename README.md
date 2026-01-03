@@ -171,15 +171,11 @@ allele	clone_size	fate_size	all_cell_number	fate_number	P1	P2	P_min	Q_value	bias
 Barcode_1	8	0	6279	2302	0.025834420337706096	0.9741655796622939	0.025834420337706096	0.041335072540329754	1.3836812958773301	-1.3836812958773301
 Barcode_2	8	0	6279	2302	0.025834420337706096	0.9741655796622939	0.025834420337706096	0.041335072540329754	1.3836812958773301	-1.3836812958773301
 ```
-P1 / P2: probabilities for fate enrichment and depletion, respectively
-
-P_min: minimum of P1 and P2
-
-Q_value: Benjamini–Hochberg–adjusted p-value
-
-bias: signed enrichment score
-
-fate_bias: direction-specific fate bias score
+- **P1 / P2**: probabilities for fate enrichment and depletion, respectively
+- **P_min**: minimum of P1 and P2
+- **Q_value**: Benjamini–Hochberg–adjusted p-value
+- **bias**: signed enrichment score
+- **fate_bias**: direction-specific fate bias score
 
 Clones exhibiting significant cell fate bias can be identified by applying
 user-defined thresholds on Q_value and fate_bias.
