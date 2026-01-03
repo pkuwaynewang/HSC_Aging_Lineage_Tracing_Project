@@ -1,0 +1,11 @@
+project_name : 'cC_TC_allele' 
+project_ID : 'test_DARLIN_analysis' 
+SampleList: ['example_sample_1_S1'] 
+cfg_type : 'sc10xV3'   
+template : 'cCARLIN' # other regions: {Tigre_2022_v2, Rosa_v2, cCARLIN},  
+read_cutoff_UMI_override : [3] 
+read_cutoff_floor : 3  # the algorithm takes the max of ....; this variable is not actually useful, as it is overrided by read_cutoff_override 
+CARLIN_memory_factor : 100 # request memory at X times the size of the pear fastq file. 
+sbatch : 0 # 1, run sbatch job;  0, run in the interactive mode. If set to be 1, expect error from file latency, as the sbatch job would take a while to finish 
+CARLIN_max_run_time : 60 # hours 
+sbatch_mode: 'intel-sc3' # partion name 
