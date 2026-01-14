@@ -217,6 +217,20 @@ A0301,99.99,0,0,0,0,0.0,AAACCTGAGTACGTTC
 unassigned,46.4,53.6,0,0,0,0,AAACCTGAGTTCGATT
 ```
 
+###  IF Tubulin distribution analysis 
+
+Before working with the following code, handle the confocol files with CellProfiler first
+
+```
+python /scripts/python/Tubulin_analysis.py sample.tiff
+```
+or run the following the change the parameter:
+
+```
+python /scripts/python/Tubulin_analysis.py sample.tiff --thr 5000 --bins 360 # default is 6000 and 180
+```
+The output file including  QC files and Tubulin distribution score: higher indicates evenly distribution.
+
 ## Data availability
 Raw sequencing data are not included in this repository.
 They will be made available via a public repository (e.g. GEO) upon publication.
