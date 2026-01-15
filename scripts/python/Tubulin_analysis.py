@@ -1,37 +1,75 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+Angular-bin QC for tubulin-like signal distribution in a 2D TIFF image.
+
+This script:
+1) Loads a (grayscale) 2D TIFF image
+2) Splits pixels into angular bins around the image center
+3) Computes per-bin signal sum and signal pixel count (signal defined by threshold)
+4) Computes simple QC features (coverage/continuity/uniformity/peakiness)
+5) Writes a QC plot PNG (optional) and a tab-delimited text report
+
+Example:
+  python tubulin_qc.py DP-07_c1_resize.tiff --bins 180 --thr 6000
+"""
+
+from __future__ import annotations
+
 import os
 import argparse
+from typing import Dict, Tuple
+
 import numpy as np
 import tifffile as tiff
 import matplotlib.pyplot as plt
 
 
 def read_gray_tif(path: str) -> np.ndarray:
-    """读取灰度tif，返回 float32"""
+    """Read a grayscale TIFF image and return a float32 2D array.
+
+    Notes
+    -----
+    If the input is not 2D (e.g., multi-channel or z-stack), this function
+    attempts to slice the first plane. If it is still not 2D, an error is raised.
+    """
     img = tiff.imread(path)
     if img.ndim != 2:
-        # 如果不是2D（比如多通道/多层），这里先尽量取第一层
+        # If not 2D (e.g., multi-channel / multi-plane), try taking the first plane.
         img = img[0]
         if img.ndim != 2:
-            raise ValueError(f"Expected 2D image after slicing, got shape={img.shape}")
+            raise ValueError(f"Expected a 2D image after slicing, got shape={img.shape}")
     return img.astype(np.float32)
 
 
-def gap_stats(present: np.ndarray):
-    """圆周上最大连续空缺比例 + 空缺段数"""
+def gap_stats(present: np.ndarray) -> Tuple[int, float]:
+    """Compute gap statistics on a circular (wrap-around) binary presence array.
+
+    Parameters
+    ----------
+    present
+        1D array of 0/1 indicating whether each angular bin has signal.
+
+    Returns
+    -------
+    gap_count
+        Number of gap segments (transitions from 1 -> 0) in circular sense.
+    max_gap_norm
+        Maximum contiguous gap length normalized by number of bins.
+    """
     v = present.astype(int)
     n = len(v)
+
     if v.sum() == 0:
         return 1, 1.0
     if v.sum() == n:
         return 0, 0.0
 
-    # 空缺段数：从 1->0 的转变次数（环状）
+    # Count gap segments: number of 1->0 transitions (circular).
     gap_count = int(np.sum((v == 0) & (np.roll(v, 1) == 1)))
 
-    # 最大连续空缺：把环展开成两倍长度求最长0-run，再截断到n
+    # Max contiguous gap: unfold circle to length 2n and find longest 0-run, clipped to n.
     vv = np.concatenate([v, v])
     run = 0
     max_run = 0
@@ -51,12 +89,30 @@ def per_bin_sum_and_count(
     n_bins: int = 180,
     center_mode: str = "image_center",
     thr: float = 6000.0,
-):
-    """
-    返回：
-      sumI[bin]   = 该角度bin内“信号像素”的强度总和（不归一化）
-      count[bin]  = 该角度bin内信号像素数
-      sig         = 信号mask (img > thr)
+) -> Tuple[Tuple[float, float], np.ndarray, np.ndarray, np.ndarray]:
+    """Compute per-angular-bin signal sum and signal pixel count.
+
+    Parameters
+    ----------
+    img
+        2D image array.
+    n_bins
+        Number of angular bins spanning [-pi, pi).
+    center_mode
+        How to define the center. Default "image_center" uses (w-1)/2 and (h-1)/2.
+    thr
+        Signal threshold; signal pixels are img > thr.
+
+    Returns
+    -------
+    (cx, cy)
+        Center coordinates used.
+    sumI
+        Per-bin sum of signal pixel intensities (no normalization).
+    count
+        Per-bin count of signal pixels.
+    sig
+        Boolean signal mask (img > thr).
     """
     h, w = img.shape
     if center_mode == "image_center":
@@ -81,7 +137,7 @@ def per_bin_sum_and_count(
 
 
 def peak_ratio_topk(s: np.ndarray, k: int = 10) -> float:
-    """最强k个bin均值 / 全部bin均值"""
+    """Compute (mean of top-k bins) / (mean of all bins)."""
     s = s.astype(np.float32)
     mean_all = float(s.mean())
     if mean_all == 0:
@@ -91,12 +147,17 @@ def peak_ratio_topk(s: np.ndarray, k: int = 10) -> float:
     return float(topk_mean / (mean_all + 1e-9))
 
 
-def score_from_sum(sumI: np.ndarray):
-    """
-    返回：
-      score (0-1之间的raw; 你也可以用 score_100 看0-100)
-      feat dict
-      present (0/1)
+def score_from_sum(sumI: np.ndarray) -> Tuple[float, Dict[str, float], np.ndarray]:
+    """Compute QC features and a raw score from per-bin signal sums.
+
+    Returns
+    -------
+    raw_score
+        Raw score (not clipped); you can clip downstream if desired.
+    feat
+        Feature dictionary (includes score_100 where higher = worse if you keep current formula).
+    present
+        1D binary array indicating bins with sumI > 0.
     """
     s = sumI.astype(np.float32)
 
@@ -125,16 +186,19 @@ def score_from_sum(sumI: np.ndarray):
     coverage = float(present.mean())
     gap_count, max_gap_norm = gap_stats(present)
 
+    # Continuity: prefer high coverage and small maximum gap.
     continuity = float(np.clip(coverage, 0, 1) * (1 - np.clip(max_gap_norm, 0, 1)))
 
-    # 你的版本：uniformity = 1 - (cv/2.0)（不clip也行，但这里为了稳定做个clip）
+    # Uniformity: penalize high CV; CV=2 => uniformity=0 in this heuristic (clipped to [0,1]).
     uniformity = float(np.clip(1 - (cv / 2.0), 0, 1))
 
+    # Peak penalty: penalize over-peaked distributions (ratio >> 1).
     peak_pen = float(np.clip(np.log1p(max(peak_ratio - 1.0, 0.0)) / np.log(10), 0, 1))
 
+    # Raw combined score (not clipped by default to preserve information).
     raw = 0.5 * continuity + 0.5 * uniformity - 0.5 * peak_pen
-    raw_clip = float(np.clip(raw, 0, 1))
-    score_100 = float(100 * raw_clip)
+    raw_score = float(raw)
+    score_100 = 100.0 - float(100.0 * raw_score)
 
     feat = dict(
         mean_sum=mean,
@@ -146,12 +210,22 @@ def score_from_sum(sumI: np.ndarray):
         coverage=float(coverage),
         gap_count=int(gap_count),
         max_gap_norm=float(max_gap_norm),
-        score_100=score_100,
+        score_100=float(score_100),
     )
-    return raw_clip, feat, present
+    return raw_score, feat, present
 
 
-def save_qc_plot(img, cx, cy, sig, sumI, feat, score_clip, out_png, thr):
+def save_qc_plot(
+    img: np.ndarray,
+    cx: float,
+    cy: float,
+    sig: np.ndarray,
+    sumI: np.ndarray,
+    feat: Dict[str, float],
+    out_png: str,
+    thr: float,
+) -> None:
+    """Save a 3-panel QC plot: raw image, signal mask, and per-bin sum curve."""
     fig = plt.figure(figsize=(11, 3.2))
 
     ax1 = fig.add_subplot(1, 3, 1)
@@ -179,7 +253,16 @@ def save_qc_plot(img, cx, cy, sig, sumI, feat, score_clip, out_png, thr):
     plt.close(fig)
 
 
-def write_txt(out_txt, in_path, n_bins, thr, feat, sumI, count):
+def write_txt(
+    out_txt: str,
+    in_path: str,
+    n_bins: int,
+    thr: float,
+    feat: Dict[str, float],
+    sumI: np.ndarray,
+    count: np.ndarray,
+) -> None:
+    """Write a tab-delimited QC report."""
     with open(out_txt, "w", encoding="utf-8") as f:
         f.write(f"input\t{in_path}\n")
         f.write(f"n_bins\t{n_bins}\n")
@@ -205,37 +288,75 @@ def write_txt(out_txt, in_path, n_bins, thr, feat, sumI, count):
             f.write(f"{i}\t{float(sumI[i])}\t{float(count[i])}\n")
 
 
-def analyze_one(path: str, n_bins: int, thr: float, make_qc: bool, out_png: str, out_txt: str):
+def analyze_one(
+    path: str,
+    n_bins: int,
+    thr: float,
+    make_qc: bool,
+    out_png: str,
+    out_txt: str,
+) -> Tuple[float, Dict[str, float]]:
+    """Run the full analysis for a single TIFF image."""
     img = read_gray_tif(path)
     (cx, cy), sumI, count, sig = per_bin_sum_and_count(img, n_bins=n_bins, thr=thr)
-    score_clip, feat, _present = score_from_sum(sumI)
+    raw_score, feat, _present = score_from_sum(sumI)
 
     if make_qc:
-        save_qc_plot(img, cx, cy, sig, sumI, feat, score_clip, out_png, thr)
+        save_qc_plot(img, cx, cy, sig, sumI, feat, out_png, thr)
 
     write_txt(out_txt, path, n_bins, thr, feat, sumI, count)
+    return raw_score, feat
 
-    return score_clip, feat
 
-
-def main():
+def build_argparser() -> argparse.ArgumentParser:
+    """Build CLI argument parser."""
     ap = argparse.ArgumentParser(
         description="Angular-bin QC for tubulin-like signal in a 2D TIFF."
     )
-    ap.add_argument("tif", help="input tif/tiff image (2D)")
-    ap.add_argument("--bins", type=int, default=180, help="number of theta bins (default: 180)")
-    ap.add_argument("--thr", type=float, default=6000.0, help="signal threshold (default: 6000)")
-    ap.add_argument("--no_qc", action="store_true", help="do not write qcplot png")
-    args = ap.parse_args()
+    ap.add_argument("tif", help="Input tif/tiff image (2D).")
+    ap.add_argument(
+        "--bins",
+        type=int,
+        default=180,
+        help="Number of theta bins (default: 180).",
+    )
+    ap.add_argument(
+        "--thr",
+        type=float,
+        default=6000.0,
+        help="Signal threshold (default: 6000).",
+    )
+    ap.add_argument(
+        "--no-qc",
+        action="store_true",
+        help="Do not write qcplot PNG.",
+    )
+    ap.add_argument(
+        "--out-dir",
+        default=None,
+        help="Output directory (default: same folder as input image).",
+    )
+    ap.add_argument(
+        "--prefix",
+        default=None,
+        help="Output filename prefix (default: input basename).",
+    )
+    return ap
+
+
+def main() -> None:
+    args = build_argparser().parse_args()
 
     in_path = args.tif
-    base = os.path.splitext(os.path.basename(in_path))[0]
-    out_dir = os.path.dirname(os.path.abspath(in_path)) or "."
+    base = args.prefix or os.path.splitext(os.path.basename(in_path))[0]
+    out_dir = args.out_dir or (os.path.dirname(os.path.abspath(in_path)) or ".")
+
+    os.makedirs(out_dir, exist_ok=True)
 
     out_png = os.path.join(out_dir, f"{base}.qcplot.png")
     out_txt = os.path.join(out_dir, f"{base}.qc.txt")
 
-    score_clip, feat = analyze_one(
+    raw_score, feat = analyze_one(
         in_path,
         n_bins=args.bins,
         thr=args.thr,
@@ -244,11 +365,12 @@ def main():
         out_txt=out_txt,
     )
 
-    # 终端打印简要结果
+    # Print a short summary to stdout
     print(f"[OK] input: {in_path}")
     if not args.no_qc:
         print(f"[OK] qcplot: {out_png}")
     print(f"[OK] txt: {out_txt}")
+    print(f"[OK] raw_score: {raw_score:.4f}")
     print(f"[OK] score_100: {feat['score_100']:.2f}")
 
 
