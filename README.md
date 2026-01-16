@@ -217,19 +217,108 @@ A0301,99.99,0,0,0,0,0.0,AAACCTGAGTACGTTC
 unassigned,46.4,53.6,0,0,0,0,AAACCTGAGTTCGATT
 ```
 
-###  IF Tubulin distribution analysis 
 
-Before working with the following code, handle the confocol files with CellProfiler first
+### Tubulin Polarization Score (Angular Bin Analysis)
+
+This repository provides a lightweight Python tool to quantify **tubulin signal distribution (polarization)** in single-cell confocal images using an angular binning strategy.
+
+The method is designed for **within-experiment comparisons under consistent imaging conditions** and outputs both total tubulin signal content and a polarization score describing spatial asymmetry.
+
+---
+
+## Concept and Rationale
+
+Given a single, centered cell image:
+
+1. The cell center is fixed at the **image center** (images are pre-cropped and centered using CellProfiler).
+2. The image is divided into **angular bins** (θ bins, default = 180) spanning \([-π, π)\).
+3. Tubulin signal is defined by an **absolute intensity threshold**.
+4. For each angular bin, we compute:
+   - **Total signal intensity** (sum of pixel intensities above threshold)
+   - **Signal pixel count**
+
+This produces a 1D circular profile describing how tubulin signal is distributed around the cell.
+
+## Polarization Score Definition
+
+Let `sumI[i]` be the total tubulin signal in angular bin *i*.
+
+### Step 1: Relative distribution
+We convert the per-bin sums into a probability distribution:
 
 ```
-python /scripts/python/Tubulin_analysis.py sample.tiff
+p_i = sumI[i] / sum(sumI)
 ```
-or run the following the change the parameter:
+
+This separates **distribution shape** from **total signal content**.
+
+### Step 2: Concentration metrics
+We compute complementary measures of spatial asymmetry:
+
+- **Entropy concentration**
+```
+C_entropy = 1 − (Shannon entropy of p) / log(N)
+```
+- 0 → uniform distribution  
+- 1 → highly concentrated
+
+- **Top-k fraction**
+Fraction of total signal contained in the top 5% of angular bins.
+
+- **Maximum angular gap**
+Largest contiguous angular region with no signal (normalized by total bins).
+
+### Step 3: Polarization score
+The final polarization score is a weighted sum:
 
 ```
-python /scripts/python/Tubulin_analysis.py sample.tiff --thr 5000 --bins 360 # default is 6000 and 180
+Polarization Score =
+w_entropy * C_entropy+
+w_topk * TopK_fraction+
+w_gap * Max_gap_fraction
 ```
-The output file including  QC files and Tubulin distribution score: higher indicates evenly distribution.
+
+**Interpretation:**
+
+- **Higher score** → tubulin signal is more localized, asymmetric, or polarized  
+- **Lower score** → tubulin signal is more evenly distributed and symmetric
+
+## Output Metrics
+
+Each image produces:
+
+### Summary features
+- `total_signal_sum` – total tubulin signal content
+- `polarization_score` – spatial asymmetry metric
+- `entropy_concentration`
+- `topk_fraction`
+- `max_bin_fraction`
+- `coverage`
+- `gap_count`
+- `max_gap_norm`
+
+### Per-bin data
+- `sumI` – per-bin total signal
+- `count` – per-bin signal pixel count
+
+An optional QC plot visualizes:
+1. Raw image
+2. Signal mask
+3. Angular signal distribution
+
+---
+
+## Command Line Usage
+
+```bash
+python tubulin_polarization.py image.tiff \
+  --bins 180 \
+  --thr 6000 \
+  --w-entropy 0.6 \
+  --w-topk 0.3 \
+  --w-gap 0.1
+```
+
 
 ## Data availability
 Raw sequencing data are not included in this repository.
