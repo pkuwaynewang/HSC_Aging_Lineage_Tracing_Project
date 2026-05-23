@@ -319,6 +319,33 @@ python tubulin_polarization.py image.tiff \
   --w-gap 0.1
 ```
 
+### shRNA Small-Scale Screening in Aged DP HSCs
+
+The analysis pipeline is adapted from the published method (PMID: 35243374) with the following modification:
+
+Instead of counting sequencing reads for each shRNA, we quantify the actual number of cells associated with each shRNA by incorporating a DNA-specific unique molecular identifier (UMI, 10 bp). This approach enables direct cell number estimation rather than read-based abundance. See the Methods section for details.
+
+## Command Line Usage
+```
+bash /scripts/shell/shRNA_screening.sh \
+sample_1_R1.fastq.gz \ # R1 file
+sample_1_R2.fastq.gz \ # R2 file
+ sample_1 \ # File name
+/data/shRNA_screening_references/screening_reference # Reference
+```
+
+## Clonal diversity analysis 
+
+The analysis will help to calculate the clonal diveristy changes using Shannon Entropy, Gini Index and Simpson Index.
+Before running the analysis, a barcode x cell type matrix Df_matrix should be prepared first, with value as the cell number.
+
+## Commonda Line Usage
+
+```
+source('./scripts/r/Clonal_diversity_analysis.R')
+results <- sapply(Df_matrix, calculate_diversity)
+
+```
 
 ## Data availability
 Raw sequencing data are not included in this repository.
