@@ -44,11 +44,11 @@ echo ""
 # ============================================
 # STEP 2: Extract UMI sequences
 # ============================================
-echo "[Step 2] Extracting UMI sequences from R2..."
+echo "[Step 2] Extracting UMI sequences from R1..."
 UMI_FILE="${BASE_DIR}/UMI/${SAMPLE_NAME}.UMI.txt"
 
-paste <(awk 'NR % 4 == 1 {sub(/ .*/, ""); print}' "${R2_FASTQ}") \
-      <(awk 'NR % 4 == 2 {print substr($0, 1, 10)}' "${R2_FASTQ}") \
+paste <(awk 'NR % 4 == 1 {sub(/ .*/, ""); print}' "${R1_FASTQ}") \
+      <(awk 'NR % 4 == 2 {print substr($0, 1, 10)}' "${R1_FASTQ}") \
       > "${UMI_FILE}"
 echo "✓ UMI extraction complete: ${UMI_FILE}"
 echo ""
